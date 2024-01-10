@@ -1,0 +1,4 @@
+
+pub const WETH_USDC_V2: &str = "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc";
+
+pub const WETH: &str = "0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc";
