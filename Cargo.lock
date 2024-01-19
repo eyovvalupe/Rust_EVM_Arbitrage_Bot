@@ -91,6 +91,7 @@ dependencies = [
  "ethabi",
  "ethers",
  "eyre",
+ "futures",
  "hex",
  "num-bigfloat",
  "serde",

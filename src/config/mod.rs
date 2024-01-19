@@ -177,27 +177,27 @@ impl Config {
                 config.protocol_creation_block = BlockNumber::Number(16616601.into());
 
                 config.dexes = vec![
-                    // Sushiswap
-                    Dex::new(
-                        H160::from_str(SUSHI_SWAP).unwrap(),
-                        DexVariant::UniswapV2,
-                        SUSHI_SWAP_CREATION_BLOCK,
-                        Some(300),
-                    ),
+                    // // Sushiswap
+                    // Dex::new(
+                    //     H160::from_str(SUSHISWAP).unwrap(),
+                    //     DexVariant::UniswapV2,
+                    //     SUSHISWAP_CREATION_BLOCK,
+                    //     Some(300),
+                    // ),
                     // Uniswap V2
                     Dex::new(
-                        H160::from_str(UNI_SWAP_V2).unwrap(),
+                        H160::from_str(UNISWAP_V2).unwrap(),
                         DexVariant::UniswapV2,
-                        UNI_SWAP_V2_CREATION_BLOCK,
+                        UNISWAP_V2_CREATION_BLOCK,
                         None,
                     ),
-                    // Uniswap V3
-                    Dex::new(
-                        H160::from_str(UNI_SWAP_V3).unwrap(),
-                        DexVariant::UniswapV3,
-                        UNI_SWAP_V3_CREATION_BLOCK,
-                        None,
-                    ),
+                    // // Uniswap V3
+                    // Dex::new(
+                    //     H160::from_str(UNISWAP_V3).unwrap(),
+                    //     DexVariant::UniswapV3,
+                    //     UNISWAP_V3_CREATION_BLOCK,
+                    //     None,
+                    // ),
                     // // Pancakeswap
                     // Dex::new(
                     //     H160::from_str("0x1097053Fd2ea711dad45caCcc45EfF7548fCB362").unwrap(),
