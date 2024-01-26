@@ -6,15 +6,14 @@ use ethabi::Token;
 use ethers::{
     abi::AbiEncode,
     providers::Middleware,
-    types::{Bytes, H160, U256},
+    types::{H160, U256},
 };
 
 use crate::{
-    abi::{self, IERC20_ABI},
+    abi::IERC20_ABI,
     config::{self},
     constants::{FIFTH_WEB_MULTICALL, UNISWAP_V2_FEE, WETH},
     error::ExecutorError,
-    execution,
     routing::{find_best_route, find_markets_and_route},
 };
 
@@ -96,7 +95,6 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
                 swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
                 swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
             } else if token_out.is_zero() {
-                swap_bytes.push(0);
             } else {
                 swap_bytes.push(0);
             }
@@ -121,51 +119,24 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
                 .calls
                 .push((uniswapv2_pool.address, hex_calldata));
 
-            // Push Erc20 transfer call
-            let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
-            let transfer_calldata = IERC20_ABI
-                .function("transfer")?
-                .encode_input(&transfer_input)
-                .unwrap();
-            let mut hex_calldata = hex::encode(transfer_calldata);
-            hex_calldata.insert_str(0, "0x");
-            swap_multicall.calls.push((token_out, hex_calldata))
+            if token_in.is_zero() {
+                swap_multicall.token_in_destination = to;
+
+                // Push Erc20 transfer call
+                let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
+                let transfer_calldata = IERC20_ABI
+                    .function("transfer")?
+                    .encode_input(&transfer_input)
+                    .unwrap();
+                let mut hex_calldata = hex::encode(transfer_calldata);
+                hex_calldata.insert_str(0, "0x");
+                swap_multicall.calls.push((token_out, hex_calldata));
+            } else if token_out.is_zero() {
+                swap_multicall.token_in_destination = uniswapv2_pool.address;
+            }
         }
         Pool::UniswapV3(_uniswapv3_pool) => {}
     }
 
     Ok((swap_data, swap_multicall))
-}
-
-//Construct a limit order execution transaction calldata
-pub async fn lo_execution_calldata<M: Middleware>(
-    configuration: &config::Config,
-    order_ids: Vec<[u8; 32]>,
-    middleware: Arc<M>,
-) -> Result<Bytes, ExecutorError<M>> {
-    let calldata = abi::ILimitOrderRouter::new(configuration.limit_order_book, middleware.clone())
-        .execute_limit_orders(order_ids)
-        .calldata()
-        .unwrap();
-
-    Ok(calldata)
-}
-
-//Construct a limit order execution transaction calldata
-pub async fn slo_execution_calldata<M: Middleware>(
-    configuration: &config::Config,
-    slo_bundle: execution::sandbox_limit_order::SandboxLimitOrderExecutionBundle,
-    middleware: Arc<M>,
-) -> Result<Bytes, ExecutorError<M>> {
-    let sandbox_limit_order_router = abi::ISandboxLimitOrderRouter::new(
-        configuration.sandbox_limit_order_router,
-        middleware.clone(),
-    );
-
-    let calldata = sandbox_limit_order_router
-        .execute_sandbox_multicall(slo_bundle.to_sandbox_multicall())
-        .calldata()
-        .unwrap();
-
-    Ok(calldata)
 }

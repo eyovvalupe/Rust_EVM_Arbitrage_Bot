@@ -20,7 +20,10 @@ pub async fn find_markets_and_route<M: 'static + Middleware>(
             true => H160::from_str(WETH).unwrap(),
             false => token_in,
         },
-        token_out,
+        match token_out.is_zero() {
+            true => H160::from_str(WETH).unwrap(),
+            false => token_out,
+        },
         &configuration.dexes,
         middleware,
     )

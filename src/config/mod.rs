@@ -38,9 +38,6 @@ pub struct Config {
     pub weth_decimals: u8,
     pub http_endpoint: String,
     pub ws_endpoint: String,
-    pub limit_order_book: H160,
-    pub sandbox_limit_order_book: H160,
-    pub sandbox_limit_order_router: H160,
     pub dexes: Vec<Dex>,
     // pub executor_address: H160,
     pub protocol_creation_block: BlockNumber,
@@ -60,9 +57,6 @@ impl Default for Config {
             weth_decimals: 0,
             http_endpoint: Default::default(),
             ws_endpoint: Default::default(),
-            limit_order_book: H160::zero(),
-            sandbox_limit_order_book: H160::zero(),
-            sandbox_limit_order_router: H160::zero(),
             dexes: vec![],
             // executor_address: H160::zero(),
             protocol_creation_block: BlockNumber::Latest,
@@ -168,9 +162,6 @@ impl Config {
                 config.native_token = NativeToken::ETH;
                 config.weth_address = H160::from_str(WETH).unwrap();
                 config.weth_decimals = 18;
-                config.limit_order_book = H160::from_str(LIMIT_ORDER_BOOK).unwrap();
-                config.sandbox_limit_order_book = H160::from_str(SANDBOX_LIMIT_ORDER_BOOK).unwrap();
-                config.sandbox_limit_order_router = H160::from_str(LIMIT_ORDER_BOOK).unwrap();
                 // config.executor_address =
                 //     H160::from_str("0x91AE75251Bc0c6654EF0B327D190877B49b21A2E").unwrap();
                 // limit order book creation block

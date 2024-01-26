@@ -1,46 +1,12 @@
 use ethers::prelude::abigen;
 
 abigen!(
-    ISandboxLimitOrderRouter,
-    "./src/abi/SandboxLimitOrderRouterABI.json";
-
-);
-
-abigen!(
-
 
     IConveyorExecutor,
     r#"[
         function checkIn() external
         function lastCheckIn(address addr) external view returns (uint256)
     ]"#;
-
-    ISandboxLimitOrderBook,
-    r#"[
-        event OrderPlaced(bytes32[] orderIds)
-        event OrderCanceled(bytes32[] orderIds)
-        event OrderUpdated(bytes32[] orderIds)
-        event OrderFilled(bytes32[] orderIds)
-        event OrderRefreshed(bytes32 indexed orderId, uint32 indexed lastRefreshTimestamp, uint32 indexed expirationTimestamp)
-        event OrderExecutionCreditUpdated(bytes32 orderId, uint128 newExecutionCredit)
-        event OrderPartialFilled(bytes32 indexed orderId, uint128 indexed amountInRemaining, uint128 indexed amountOutRemaining, uint128 executionCreditRemaining, uint128 feeRemaining)
-        function getSandboxLimitOrderById(bytes32 orderId) external view returns (uint32, uint32, uint128, uint128, uint128, uint128, uint128, address, address, address, bytes32)
-        function validateAndCancelOrder(bytes32 orderId) external returns (bool success)
-        function refreshOrder(bytes32[] calldata orderIds) external;
-    ]"#;
-
-    ILimitOrderBook,
-    r#"[
-        function getLimitOrderById(bytes32 orderId) external view returns (bool, bool, bool, uint32, uint32, uint24, uint24, uint16, uint128, uint128, uint128, uint128, address, address, address, bytes32) 
-        function validateAndCancelOrder(bytes32 orderId) external returns (bool success)
-    ]"#;
-
-    ILimitOrderRouter,
-    r#"[
-        function executeLimitOrders(bytes32[] calldata orderIds) external;
-        function refreshOrder(bytes32[] memory orderIds) external;
-    ]"#;
-
 
     IUniswapV2Factory,
     r#"[
