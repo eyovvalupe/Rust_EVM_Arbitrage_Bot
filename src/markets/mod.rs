@@ -42,6 +42,8 @@ pub async fn get_market<M: 'static + Middleware>(
         }
     }
 
+    println!("this is the markets from the Markets ==========> {:?}", market);
+
     if !market.is_empty() {
         Ok(Some(market))
     } else {

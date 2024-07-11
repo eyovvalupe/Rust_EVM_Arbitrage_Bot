@@ -182,13 +182,13 @@ impl Config {
                         UNISWAP_V2_CREATION_BLOCK,
                         None,
                     ),
-                    // // Uniswap V3
-                    // Dex::new(
-                    //     H160::from_str(UNISWAP_V3).unwrap(),
-                    //     DexVariant::UniswapV3,
-                    //     UNISWAP_V3_CREATION_BLOCK,
-                    //     None,
-                    // ),
+                    // Uniswap V3
+                    Dex::new(
+                        H160::from_str(UNISWAP_V3).unwrap(),
+                        DexVariant::UniswapV3,
+                        UNISWAP_V3_CREATION_BLOCK,
+                        None,
+                    ),
                     // // Pancakeswap
                     // Dex::new(
                     //     H160::from_str("0x1097053Fd2ea711dad45caCcc45EfF7548fCB362").unwrap(),
