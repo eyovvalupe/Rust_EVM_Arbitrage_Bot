@@ -1,21 +1,15 @@
-use cfmms::pool::{Pool, UniswapV2Pool, UniswapV3Pool};
+use cfmms::pool::{Pool, UniswapV2Pool};
 use ethers::providers::Middleware;
 use ethers::types::{H160, U256};
-use ethers::contract::abigen;
 use std::collections::HashMap;
 use std::{str::FromStr, sync::Arc};
-
-use crate::config::Config;
-use crate::constants::{WETH, V3_QUOTER_ADDRESS};
-use crate::error::ExecutorError;
-use crate::markets;
-
-abigen!(
-    IUniswapV3Quoter,
-    r#"[
-        function quoteExactInputSingle(address tokenIn, address tokenOut, uint24 fee, uint256 amountIn, uint160 sqrtPriceLimitX96) external returns (uint256 amountOut)
-    ]"#,
-);
+use crate::{
+    config::Config,
+    constants::WETH,
+    markets,
+    abi::IUniswapV3Quoter,
+    error::ExecutorError,
+};
 
 pub async fn find_markets_and_route<M: 'static + Middleware>(
     token_in: H160,
@@ -56,12 +50,12 @@ pub async fn find_best_route<M: 'static + Middleware>(
     token_in: H160,
     amount: U256,
     middleware: Arc<M>,
-) -> Result<(Pool, U256, Pool, U256), ExecutorError<M>> {
-    let mut best_amount_out_v2 = U256::zero();
-    let mut best_amount_out_v3 = U256::zero();
-    let mut best_pool_v2 = Pool::UniswapV2(UniswapV2Pool::default());
-    let mut best_pool_v3 = Pool::UniswapV3(UniswapV3Pool::default());
-    let mut handles: Vec<Pool> = vec![];
+) -> Result<(Pool, U256), ExecutorError<M>> {
+    pub const V3_QUOTER_ADDRESS: H160 = H160([
+        178, 115, 8, 249, 249, 13, 96, 116, 99, 187, 51, 234, 27, 235, 180, 28, 39, 206, 90, 182,
+    ]);
+    let mut best_amount_out = U256::zero();
+    let mut best_pool = Pool::UniswapV2(UniswapV2Pool::default());
 
     for pool in markets.values() {
         let pool = *pool;
@@ -70,41 +64,40 @@ pub async fn find_best_route<M: 'static + Middleware>(
                 let swap_amount_out = pool
                     .simulate_swap(token_in, amount, middleware.clone())
                     .await?;
-                if swap_amount_out > best_amount_out_v2 {
-                    best_amount_out_v2 = swap_amount_out;
-                    best_pool_v2 = pool;
+                if swap_amount_out > best_amount_out {
+                    best_amount_out = swap_amount_out;
+                    best_pool = pool;
                 }
             }
 
-            Pool::UniswapV3(_uniswap_v3_pool) => {
-                    let uniswap_v3_quoter = IUniswapV3Quoter::new(
-                        H160::from_str(V3_QUOTER_ADDRESS).unwrap(),
-                        middleware.clone(),
-                    );
+            Pool::UniswapV3(uniswap_v3_pool) => {
+                let uniswap_v3_quoter =
+                    IUniswapV3Quoter::new(V3_QUOTER_ADDRESS, middleware.clone());
 
-                    let (token_in, token_out) = if token_in == _uniswap_v3_pool.token_a {
-                        (_uniswap_v3_pool.token_a, _uniswap_v3_pool.token_b)
-                    } else {
-                        (_uniswap_v3_pool.token_b, _uniswap_v3_pool.token_a)
-                    };
-                    let swap_amount_out = uniswap_v3_quoter
-                        .quote_exact_input_single(
-                            token_in,
-                            token_out,
-                            pool.fee(),
-                            amount,
-                            U256::zero(),
-                        )
-                        .call()
-                        .await?;
+                let (token_in, token_out) = if token_in == uniswap_v3_pool.token_a {
+                    (uniswap_v3_pool.token_a, uniswap_v3_pool.token_b)
+                } else {
+                    (uniswap_v3_pool.token_b, uniswap_v3_pool.token_a)
+                };
 
-                    if swap_amount_out > best_amount_out_v3 {
-                        best_amount_out_v3 = swap_amount_out;
-                        best_pool_v3 = pool;
-                    }                        
+                let swap_amount_out = uniswap_v3_quoter
+                    .quote_exact_input_single(
+                        token_in,
+                        token_out,
+                        pool.fee(),
+                        amount,
+                        U256::zero(),
+                    )
+                    .call()
+                    .await?;
+
+                if swap_amount_out > best_amount_out {
+                    best_amount_out = swap_amount_out;
+                    best_pool = pool;
+                }
             }
         };
     }
 
-    Ok((best_pool_v2, best_amount_out_v2, best_pool_v3, best_amount_out_v3))
+    Ok((best_pool, best_amount_out))
 }
