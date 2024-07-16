@@ -1,12 +1,11 @@
 use std::{str::FromStr, sync::Arc};
 
-use amms::amm::uniswap_v2::IUNISWAPV2PAIR_ABI;
 use cfmms::pool::Pool;
 use ethabi::Token;
 use ethers::{
     abi::AbiEncode,
     providers::Middleware,
-    types::{H160, U256},
+    types::{H160, I256, U256},
 };
 
 use crate::{
@@ -47,6 +46,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let (best_pool, best_amount_out) =
         find_best_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
 
+    println!("this is the best result from routing =========> {:?} \n {:?}", best_pool, best_amount_out);
     // Construct SwapCallData
     let mut swap_data: SwapData = SwapData {
         token_in: None,
@@ -98,18 +98,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
             } else {
                 swap_bytes.push(0);
             }
-
-            let input_tokens = vec![
-                Token::Uint(amount_fixed_for_fee),
-                Token::Uint(U256::zero()),
-                Token::Address(to),
-                Token::Bytes(swap_bytes),
-            ];
-
-            let swap_calldata = IUNISWAPV2PAIR_ABI
-                .function("swap")?
-                .encode_input(&input_tokens)
-                .unwrap();
+            let swap_calldata = uniswapv2_pool.swap_calldata(amount_fixed_for_fee, U256::zero(), to, swap_bytes);
 
             let mut hex_calldata = hex::encode(swap_calldata.clone());
             hex_calldata.insert_str(0, "0x");
@@ -135,8 +124,43 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
                 swap_multicall.token_in_destination = uniswapv2_pool.address;
             }
         }
-        Pool::UniswapV3(_uniswapv3_pool) => {}
-    }
+        Pool::UniswapV3(_uniswapv3_pool) => {
+            let mut swap_bytes: Vec<u8> = vec![];
 
+            if token_in.is_zero() {
+                swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
+                swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
+            } else if token_out.is_zero() {
+            } else {
+                swap_bytes.push(0);
+            }
+
+            let swap_calldata = _uniswapv3_pool.swap_calldata(to, true, I256::zero(), amount_fixed_for_fee, swap_bytes);
+
+            let mut hex_calldata = hex::encode(swap_calldata.clone());
+            hex_calldata.insert_str(0, "0x");
+
+            // Push V2 swap call
+            swap_multicall
+                .calls
+                .push((_uniswapv3_pool.address, hex_calldata));
+
+            if token_in.is_zero() {
+                swap_multicall.token_in_destination = to;
+
+                // Push Erc20 transfer call
+                let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
+                let transfer_calldata = IERC20_ABI
+                    .function("transfer")?
+                    .encode_input(&transfer_input)
+                    .unwrap();
+                let mut hex_calldata = hex::encode(transfer_calldata);
+                hex_calldata.insert_str(0, "0x");
+                swap_multicall.calls.push((token_out, hex_calldata));
+            } else if token_out.is_zero() {
+                swap_multicall.token_in_destination = _uniswapv3_pool.address;
+            }
+        }
+    }
     Ok((swap_data, swap_multicall))
 }
