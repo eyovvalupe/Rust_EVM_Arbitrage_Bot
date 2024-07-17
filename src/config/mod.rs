@@ -168,13 +168,13 @@ impl Config {
                 config.protocol_creation_block = BlockNumber::Number(16616601.into());
 
                 config.dexes = vec![
-                    // // Sushiswap
-                    // Dex::new(
-                    //     H160::from_str(SUSHISWAP).unwrap(),
-                    //     DexVariant::UniswapV2,
-                    //     SUSHISWAP_CREATION_BLOCK,
-                    //     Some(300),
-                    // ),
+                    // Sushiswap
+                    Dex::new(
+                        H160::from_str(SUSHISWAP).unwrap(),
+                        DexVariant::UniswapV2,
+                        SUSHISWAP_CREATION_BLOCK,
+                        Some(300),
+                    ),
                     // Uniswap V2
                     Dex::new(
                         H160::from_str(UNISWAP_V2).unwrap(),
