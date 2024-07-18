@@ -7,7 +7,10 @@ use ethers::{
     utils::keccak256,
 };
 
-use crate::error::ExecutorError;
+use crate::{
+    error::ExecutorError,
+    markets
+};
 
 pub type Market = HashMap<H160, Pool>;
 
@@ -20,6 +23,37 @@ pub fn get_market_id(token_a: H160, token_b: H160) -> U256 {
         U256::from_little_endian(&keccak256(
             vec![token_b.as_bytes(), token_a.as_bytes()].concat(),
         ))
+    }
+}
+
+pub async fn get_market_x<M: 'static + Middleware>(
+    token_a: H160,
+    token_b: H160,
+    dexes: &[Dex],
+    middleware: Arc<M>,
+) -> Result<Option<HashMap<U256, markets::Market>>, ExecutorError<M>> {
+    let mut market = HashMap::new();
+    let mut simulated_markets: HashMap<U256, markets::Market> = HashMap::new();
+
+    for dex in dexes {
+        if let Some(pools) = dex
+            .get_all_pools_for_pair(token_a, token_b, middleware.clone())
+            .await?
+        {
+            let a_to_weth_market_id = markets::get_market_id(token_a, token_b);
+            for pool in pools {
+                market.insert(pool.address(), pool);
+            }
+            simulated_markets.insert(a_to_weth_market_id, market.clone());
+        }
+    }
+
+    println!("this is the markets from the Markets ==========> {:?}", simulated_markets);
+
+    if !simulated_markets.is_empty() {
+        Ok(Some(simulated_markets))
+    } else {
+        Ok(None)
     }
 }
 

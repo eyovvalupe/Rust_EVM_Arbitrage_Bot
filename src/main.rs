@@ -35,6 +35,7 @@ async fn main() -> eyre::Result<()> {
 
     let token_in = H160::from_str("0x0000000000000000000000000000000000000000")?;
     let token_out = H160::from_str("0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF").unwrap();
+    let token_x = H160::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let amount_in = U256::from_dec_str("1000000").unwrap();
     let slippage: u32 = 10 * 100; // Should be permyriad value
     let receiver = H160::from_str("0x0000000000000000000000000000000000000000").unwrap();
@@ -43,6 +44,7 @@ async fn main() -> eyre::Result<()> {
         &configuration,
         token_in,
         token_out,
+        token_x,
         amount_in,
         slippage,
         receiver,

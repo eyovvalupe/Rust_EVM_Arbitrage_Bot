@@ -13,7 +13,7 @@ use crate::{
     config::{self},
     constants::{FIFTH_WEB_MULTICALL, UNISWAP_V2_FEE, WETH},
     error::ExecutorError,
-    routing::{find_best_route, find_markets_and_route},
+    routing::{find_best_a_to_b_route, find_a_to_b_markets_and_route, find_a_to_x_to_b_markets_and_route, find_best_a_to_x_to_b_route},
 };
 
 pub(crate) mod types;
@@ -25,6 +25,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     configuration: &config::Config,
     token_in: H160,
     token_out: H160,
+    token_x: H160,
     amount_in: U256,
     slippage: u32,
     receiver: H160,
@@ -40,11 +41,18 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         protocol_fee = amount_in - amount_fixed_for_fee;
     }
 
+    let multi_markets = 
+    find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
+    println!("this is the markets and temp markets ===============> {:?} \n", multi_markets);
+
+    let (mut amounts_in, mut amounts_out, mut route) = 
+        find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone());
+
     let markets =
-        find_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
+        find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
 
     let (best_pool, best_amount_out) =
-        find_best_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
+        find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
 
     println!("this is the best result from routing =========> {:?} \n {:?}", best_pool, best_amount_out);
     // Construct SwapCallData
