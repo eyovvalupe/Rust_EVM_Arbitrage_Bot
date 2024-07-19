@@ -42,14 +42,16 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     }
 
     let multi_markets = 
-    find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
-    println!("this is the markets and temp markets ===============> {:?} \n", multi_markets);
-
-    let (mut amounts_in, mut amounts_out, mut route) = 
-        find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone());
-
+        find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
+    println!("this is the markets and temp markets ===============> {:?} \n ", multi_markets);
+    
+    let (amounts_in, amounts_out, route) = 
+        find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone()).await?;
+    
+    println!("this is the finding best route ===============> {:?} \n {:?} \n {:?} \n", amounts_in, amounts_out, route);
     let markets =
         find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
+    println!("this is the markets form a_to_b ================> {:?}\n", amount_fixed_for_fee);
 
     let (best_pool, best_amount_out) =
         find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;

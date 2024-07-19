@@ -40,15 +40,13 @@ pub async fn get_market_x<M: 'static + Middleware>(
             .get_all_pools_for_pair(token_a, token_b, middleware.clone())
             .await?
         {
-            let a_to_weth_market_id = markets::get_market_id(token_a, token_b);
+            let market_id = markets::get_market_id(token_a, token_b);
             for pool in pools {
                 market.insert(pool.address(), pool);
             }
-            simulated_markets.insert(a_to_weth_market_id, market.clone());
+            simulated_markets.insert(market_id, market.clone());
         }
     }
-
-    println!("this is the markets from the Markets ==========> {:?}", simulated_markets);
 
     if !simulated_markets.is_empty() {
         Ok(Some(simulated_markets))
@@ -75,8 +73,6 @@ pub async fn get_market<M: 'static + Middleware>(
             }
         }
     }
-
-    println!("this is the markets from the Markets ==========> {:?}", market);
 
     if !market.is_empty() {
         Ok(Some(market))

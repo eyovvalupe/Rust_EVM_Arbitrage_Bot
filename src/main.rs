@@ -33,9 +33,9 @@ async fn main() -> eyre::Result<()> {
         configuration.http_endpoint.clone(),
     )?);
 
-    let token_in = H160::from_str("0x0000000000000000000000000000000000000000")?;
-    let token_out = H160::from_str("0xdBdb4d16EdA451D0503b854CF79D55697F90c8DF").unwrap();
-    let token_x = H160::from_str("0x0000000000000000000000000000000000000000").unwrap();
+    let token_in = H160::from_str("0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48").unwrap();
+    let token_out = H160::from_str("0xdAC17F958D2ee523a2206206994597C13D831ec7").unwrap();
+    let token_x = H160::from_str("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2").unwrap();
     let amount_in = U256::from_dec_str("1000000").unwrap();
     let slippage: u32 = 10 * 100; // Should be permyriad value
     let receiver = H160::from_str("0x0000000000000000000000000000000000000000").unwrap();

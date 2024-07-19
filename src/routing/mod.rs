@@ -1,4 +1,5 @@
 use cfmms::pool::{Pool, UniswapV2Pool};
+use ethabi::token;
 use ethers::providers::Middleware;
 use ethers::types::{H160, U256};
 use std::collections::HashMap;
@@ -15,6 +16,20 @@ use futures::future::join_all;
 pub const V3_QUOTER_ADDRESS: H160 = H160([
     178, 115, 8, 249, 249, 13, 96, 116, 99, 187, 51, 234, 27, 235, 180, 28, 39, 206, 90, 182,
 ]);
+
+fn merge_option_hashmaps<K, V>(
+    map1: Option<HashMap<K, V>>, 
+    map2: Option<HashMap<K, V>>
+) -> Option<HashMap<K, V>> where K: std::hash::Hash + Eq, V: Clone, {
+    match (map1, map2) {
+        (None, None) => None,
+        (Some(map), None) | (None, Some(map)) => Some(map),
+        (Some(mut map1), Some(map2)) => {
+            map1.extend(map2);
+            Some(map1)
+        }
+    }
+}
 
 pub async fn find_a_to_b_markets_and_route<M: 'static + Middleware>(
     token_in: H160,
@@ -66,6 +81,7 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
                 let swap_amount_out = pool
                     .simulate_swap(token_in, amount, middleware.clone())
                     .await?;
+                println!("this is the swap_amount_out from uniswap2 ==================> {:?}\n", swap_amount_out);
                 if swap_amount_out > best_amount_out {
                     best_amount_out = swap_amount_out;
                     best_pool = pool;
@@ -93,6 +109,7 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
                     .call()
                     .await?;
 
+                println!("this is the swap_amount_out from uniswap3 ==================> {:?}\n", swap_amount_out);
                 if swap_amount_out > best_amount_out {
                     best_amount_out = swap_amount_out;
                     best_pool = pool;
@@ -111,7 +128,7 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     configuration: &Config,
     middleware: Arc<M>,
 ) -> Result<HashMap<U256, markets::Market>, ExecutorError<M>> {
-    let mut markets = markets::get_market_x(
+    let markets = markets::get_market_x(
         match token_in.is_zero() {
             true => H160::from_str(WETH).unwrap(),
             false => token_in,
@@ -124,7 +141,6 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
         middleware.clone(),
     )
     .await?;
-
     let temp_markets = markets::get_market_x(
         match token_x.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -139,14 +155,12 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     )
     .await?;
 
-    for (value) in &temp_markets {
-        markets.insert(value.clone());
-    }
+    let result = merge_option_hashmaps(markets, temp_markets);
     
-    match markets {
-        Some(markets) => {
-            println!("Found markets: {:?}", markets.keys());
-            Ok(markets)
+    match result {
+        Some(result) => {
+            println!("Found markets: {:?}", result.keys());
+            Ok(result)
         }
         None => {
             println!("No markets found!");
@@ -169,6 +183,7 @@ pub async fn find_best_a_to_x_to_b_route<M: 'static + Middleware>(
         // Simulate order along route for token_a -> weth -> token_b
         let a_to_x_market = simulated_markets.get(&markets::get_market_id(token_in, token_x));
         let x_to_b_market = simulated_markets.get(&markets::get_market_id(token_x, token_out));
+
         if a_to_x_market.is_some() && x_to_b_market.is_some() {
             let a_to_x_market = a_to_x_market.unwrap();
             let x_to_b_market = x_to_b_market.unwrap();
