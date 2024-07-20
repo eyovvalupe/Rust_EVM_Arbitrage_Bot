@@ -1,5 +1,4 @@
 use cfmms::pool::{Pool, UniswapV2Pool};
-use ethabi::token;
 use ethers::providers::Middleware;
 use ethers::types::{H160, U256};
 use std::collections::HashMap;
@@ -81,7 +80,7 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
                 let swap_amount_out = pool
                     .simulate_swap(token_in, amount, middleware.clone())
                     .await?;
-                println!("this is the swap_amount_out from uniswap2 ==================> {:?}\n", swap_amount_out);
+                
                 if swap_amount_out > best_amount_out {
                     best_amount_out = swap_amount_out;
                     best_pool = pool;
@@ -109,7 +108,6 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
                     .call()
                     .await?;
 
-                println!("this is the swap_amount_out from uniswap3 ==================> {:?}\n", swap_amount_out);
                 if swap_amount_out > best_amount_out {
                     best_amount_out = swap_amount_out;
                     best_pool = pool;

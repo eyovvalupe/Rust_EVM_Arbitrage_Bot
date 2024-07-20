@@ -1,6 +1,5 @@
 use std::{str::FromStr, sync::Arc};
 
-use constants::{ETH, USDC};
 use dotenv::dotenv;
 use ethers::{
     providers::{Http, Provider},

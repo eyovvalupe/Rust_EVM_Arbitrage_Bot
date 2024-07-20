@@ -3,9 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use cfmms::pool::Pool;
 use ethabi::Token;
 use ethers::{
-    abi::AbiEncode,
-    providers::Middleware,
-    types::{H160, I256, U256},
+    abi::AbiEncode, providers::Middleware, types::{H160, I256, U256}
 };
 
 use crate::{
@@ -43,20 +41,16 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
 
     let multi_markets = 
         find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
-    println!("this is the markets and temp markets ===============> {:?} \n ", multi_markets);
     
-    let (amounts_in, amounts_out, route) = 
+    let (amounts_in, axb_amounts_out, axb_route) = 
         find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone()).await?;
     
-    println!("this is the finding best route ===============> {:?} \n {:?} \n {:?} \n", amounts_in, amounts_out, route);
     let markets =
         find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
-    println!("this is the markets form a_to_b ================> {:?}\n", amount_fixed_for_fee);
 
-    let (best_pool, best_amount_out) =
+    let (ab_pool, ab_amount_out) =
         find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
 
-    println!("this is the best result from routing =========> {:?} \n {:?}", best_pool, best_amount_out);
     // Construct SwapCallData
     let mut swap_data: SwapData = SwapData {
         token_in: None,
@@ -73,6 +67,19 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         0 => 95 * 100,
         _ => slippage,
     };
+    let mut ab_route = vec![];
+    let mut best_route = vec![];
+    let mut best_amount_out = U256::zero();
+
+    ab_route.push(ab_pool);
+    if axb_amounts_out.last().unwrap() > &ab_amount_out {
+        best_amount_out = *axb_amounts_out.last().unwrap();
+        best_route = axb_route;
+    }
+    else {
+        best_amount_out = ab_amount_out;
+        best_route = ab_route;
+    }
 
     let amount_out_min = best_amount_out - best_amount_out * slippage_used / 10000;
 
@@ -97,78 +104,80 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         calls: vec![],
     };
 
-    match best_pool {
-        Pool::UniswapV2(uniswapv2_pool) => {
-            let mut swap_bytes: Vec<u8> = vec![];
+    for best_pool in best_route {
+        match best_pool {
+            Pool::UniswapV2(uniswapv2_pool) => {
+                let mut swap_bytes: Vec<u8> = vec![];
 
-            if token_in.is_zero() {
-                swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
-                swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
-            } else if token_out.is_zero() {
-            } else {
-                swap_bytes.push(0);
-            }
-            let swap_calldata = uniswapv2_pool.swap_calldata(amount_fixed_for_fee, U256::zero(), to, swap_bytes);
+                if token_in.is_zero() {
+                    swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
+                    swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
+                } else if token_out.is_zero() {
+                } else {
+                    swap_bytes.push(0);
+                }
+                let swap_calldata = uniswapv2_pool.swap_calldata(amount_fixed_for_fee, U256::zero(), to, swap_bytes);
 
-            let mut hex_calldata = hex::encode(swap_calldata.clone());
-            hex_calldata.insert_str(0, "0x");
-
-            // Push V2 swap call
-            swap_multicall
-                .calls
-                .push((uniswapv2_pool.address, hex_calldata));
-
-            if token_in.is_zero() {
-                swap_multicall.token_in_destination = to;
-
-                // Push Erc20 transfer call
-                let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
-                let transfer_calldata = IERC20_ABI
-                    .function("transfer")?
-                    .encode_input(&transfer_input)
-                    .unwrap();
-                let mut hex_calldata = hex::encode(transfer_calldata);
+                let mut hex_calldata = hex::encode(swap_calldata.clone());
                 hex_calldata.insert_str(0, "0x");
-                swap_multicall.calls.push((token_out, hex_calldata));
-            } else if token_out.is_zero() {
-                swap_multicall.token_in_destination = uniswapv2_pool.address;
+
+                // Push V2 swap call
+                swap_multicall
+                    .calls
+                    .push((uniswapv2_pool.address, hex_calldata));
+
+                if token_in.is_zero() {
+                    swap_multicall.token_in_destination = to;
+
+                    // Push Erc20 transfer call
+                    let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
+                    let transfer_calldata = IERC20_ABI
+                        .function("transfer")?
+                        .encode_input(&transfer_input)
+                        .unwrap();
+                    let mut hex_calldata = hex::encode(transfer_calldata);
+                    hex_calldata.insert_str(0, "0x");
+                    swap_multicall.calls.push((token_out, hex_calldata));
+                } else if token_out.is_zero() {
+                    swap_multicall.token_in_destination = uniswapv2_pool.address;
+                }
             }
-        }
-        Pool::UniswapV3(_uniswapv3_pool) => {
-            let mut swap_bytes: Vec<u8> = vec![];
+            Pool::UniswapV3(_uniswapv3_pool) => {
+                let mut swap_bytes: Vec<u8> = vec![];
 
-            if token_in.is_zero() {
-                swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
-                swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
-            } else if token_out.is_zero() {
-            } else {
-                swap_bytes.push(0);
-            }
+                if token_in.is_zero() {
+                    swap_bytes.extend(&H160::from_str(WETH).unwrap().encode());
+                    swap_bytes.extend(&U256::from(UNISWAP_V2_FEE).encode());
+                } else if token_out.is_zero() {
+                } else {
+                    swap_bytes.push(0);
+                }
 
-            let swap_calldata = _uniswapv3_pool.swap_calldata(to, true, I256::zero(), amount_fixed_for_fee, swap_bytes);
+                let swap_calldata = _uniswapv3_pool.swap_calldata(to, true, I256::zero(), amount_fixed_for_fee, swap_bytes);
 
-            let mut hex_calldata = hex::encode(swap_calldata.clone());
-            hex_calldata.insert_str(0, "0x");
-
-            // Push V2 swap call
-            swap_multicall
-                .calls
-                .push((_uniswapv3_pool.address, hex_calldata));
-
-            if token_in.is_zero() {
-                swap_multicall.token_in_destination = to;
-
-                // Push Erc20 transfer call
-                let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
-                let transfer_calldata = IERC20_ABI
-                    .function("transfer")?
-                    .encode_input(&transfer_input)
-                    .unwrap();
-                let mut hex_calldata = hex::encode(transfer_calldata);
+                let mut hex_calldata = hex::encode(swap_calldata.clone());
                 hex_calldata.insert_str(0, "0x");
-                swap_multicall.calls.push((token_out, hex_calldata));
-            } else if token_out.is_zero() {
-                swap_multicall.token_in_destination = _uniswapv3_pool.address;
+
+                // Push V2 swap call
+                swap_multicall
+                    .calls
+                    .push((_uniswapv3_pool.address, hex_calldata));
+
+                if token_in.is_zero() {
+                    swap_multicall.token_in_destination = to;
+
+                    // Push Erc20 transfer call
+                    let transfer_input = vec![Token::Address(receiver), Token::Uint(best_amount_out)];
+                    let transfer_calldata = IERC20_ABI
+                        .function("transfer")?
+                        .encode_input(&transfer_input)
+                        .unwrap();
+                    let mut hex_calldata = hex::encode(transfer_calldata);
+                    hex_calldata.insert_str(0, "0x");
+                    swap_multicall.calls.push((token_out, hex_calldata));
+                } else if token_out.is_zero() {
+                    swap_multicall.token_in_destination = _uniswapv3_pool.address;
+                }
             }
         }
     }
