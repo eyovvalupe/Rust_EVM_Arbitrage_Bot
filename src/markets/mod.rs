@@ -7,6 +7,10 @@ use ethers::{
     utils::keccak256,
 };
 
+pub(crate) mod AllPools;
+use futures::io::AllowStdIo;
+use AllPools::get_pools;
+
 use crate::{
     error::ExecutorError,
     markets
@@ -105,4 +109,15 @@ pub fn get_best_market_price(
     }
 
     best_price
+}
+
+pub async fn get_market_all<M: 'static + Middleware>(
+    token_a: H160,
+    token_b: H160,
+    dexes: &[Dex],
+    middleware: Arc<M>,
+) -> Result<Option<HashMap<H160, Pool>>, ExecutorError<M>> {
+    let mut market = HashMap::new();
+
+    let pools = AllowStdIo::get_pools(token_a, token_b);
 }
