@@ -1,15 +1,15 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, sync::{Arc, Mutex}, panic::resume_unwind};
 
-use cfmms::{dex::Dex, pool::Pool};
+use cfmms::{checkpoint, dex::Dex, errors::CFMMError, pool::Pool, throttle::RequestThrottle};
 use ethers::{
     providers::Middleware,
     types::{H160, U256},
     utils::keccak256,
 };
-
-pub(crate) mod AllPools;
-use futures::io::AllowStdIo;
-use AllPools::get_pools;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+// pub(crate) mod AllPools;
+// use futures::io::AllowStdIo;
+// use AllPools::get_pools;
 
 use crate::{
     error::ExecutorError,
@@ -111,13 +111,109 @@ pub fn get_best_market_price(
     best_price
 }
 
-pub async fn get_market_all<M: 'static + Middleware>(
-    token_a: H160,
-    token_b: H160,
-    dexes: &[Dex],
+pub async fn get_all_markets<M: 'static + Middleware>(
+    dexes: Vec<Dex>,
     middleware: Arc<M>,
-) -> Result<Option<HashMap<H160, Pool>>, ExecutorError<M>> {
-    let mut market = HashMap::new();
+) -> Result<Vec<Pool>, CFMMError<M>> {
+    // let mut market = HashMap::new();
 
-    let pools = AllowStdIo::get_pools(token_a, token_b);
+    // let pools = AllowStdIo::get_pools(token_a, token_b);
+
+    println!("THIS IS THE START OF THE GETTING ALL MARKETS");
+
+    let current_block = middleware
+                                .get_block_number()
+                                .await
+                                .map_err(CFMMError::MiddlewareError)?;
+    //Initialize a new request throttle
+    let request_throttle = Arc::new(Mutex::new(RequestThrottle::new(10)));
+
+    //Aggregate the populated pools from each thread
+    let mut aggregated_pools: Vec<Pool> = vec![];
+    let mut handles = vec![];
+
+    //Initialize multi progress bar
+    let multi_progress_bar = MultiProgress::new();
+
+    //For each dex supplied, get all pair created events and get reserve values
+    for dex in dexes.clone() {
+        let async_provider = middleware.clone();
+        let request_throttle = request_throttle.clone();
+        let progress_bar = multi_progress_bar.add(ProgressBar::new(0));
+
+        handles.push(tokio::spawn(async move {
+            progress_bar.set_style(
+                ProgressStyle::with_template("{msg} {bar:40.cyan/blue} {pos:>7}/{len:7} Pairs")
+                    .unwrap()
+                    .progress_chars("##-"),
+            );
+
+            let mut pools = dex
+                .get_all_pools(
+                    request_throttle.clone(),
+                    100000000,
+                    progress_bar.clone(),
+                    async_provider.clone(),
+                )
+                .await?;
+            // println!("this is the all pools of specific dex ==============> {:?}\n", pools);
+
+            progress_bar.reset();
+            progress_bar.set_style(
+                ProgressStyle::with_template("{msg} {bar:40.cyan/blue} {pos:>7}/{len:7} Block")
+                    .unwrap()
+                    .progress_chars("##-"),
+            );
+
+            dex.get_all_pool_data(
+                &mut pools,
+                request_throttle.clone(),
+                progress_bar.clone(),
+                async_provider.clone(),
+            )
+            .await?;
+
+            progress_bar.finish_and_clear();
+            progress_bar.set_message(format!(
+                "Finished syncing pools for {} ✅",
+                dex.factory_address()
+            ));
+
+            progress_bar.finish();
+
+            Ok::<_, CFMMError<M>>(pools)
+        }));
+    }
+
+    for handle in handles {
+        match handle.await {
+            Ok(sync_result) => aggregated_pools.extend(sync_result?),
+            Err(err) => {
+                {
+                    if err.is_panic() {
+                        // Resume the panic on the main task
+                        resume_unwind(err.into_panic());
+                    }
+                }
+            }
+        }
+    }
+    // let checkpoint_path = Some("");
+    // //Save a checkpoint if a path is provided
+    // // if checkpoint_path.is_some() {
+    //     let checkpoint_path = checkpoint_path.unwrap();
+
+    //     checkpoint::construct_checkpoint(
+    //         dexes,
+    //         &aggregated_pools,
+    //         current_block.as_u64(),
+    //         checkpoint_path,
+    //     );
+    // // }
+
+    // //Return the populated aggregated pools vec
+    println!("THIS IS THE END OF THE GETTING ALL MARKETS");
+
+
+    Ok(aggregated_pools)    
 }

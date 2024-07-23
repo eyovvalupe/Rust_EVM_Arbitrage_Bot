@@ -2,6 +2,7 @@ use cfmms::pool::{Pool, UniswapV2Pool};
 use ethers::providers::Middleware;
 use ethers::types::{H160, U256};
 use std::collections::HashMap;
+use std::hash::RandomState;
 use std::{str::FromStr, sync::Arc};
 use crate::{
     config::Config,
@@ -298,4 +299,33 @@ pub async fn find_best_route_across_markets<M: 'static + Middleware>(
     }
 
     Ok((amounts_in, amounts_out, route))
+}
+
+pub async fn find_all_markets<M: 'static + Middleware>(
+    token_in: H160,
+    token_out: H160,
+    configuration: &Config,
+    middleware: Arc<M>,
+) -> Result<Vec<Pool>, ExecutorError<M>> {
+    println!("this is the position before call the get_all_markets function\n");
+    let markets = markets::get_all_markets(
+        configuration.dexes.clone(),
+        middleware,
+    )
+    .await?;
+
+    println!("this is the all markets =================> {:?}\n",markets);
+// Ok(markets);
+    match markets {
+        (markets) => {
+            // println!("Found markets: {:?}", markets.keys());
+            Ok(markets)
+        }
+        // None => {
+        //     println!("No markets found!");
+        //     Err(ExecutorError::MarketDoesNotExistForPair(
+        //         token_in, token_out,
+        //     ))
+        // }
+    }
 }

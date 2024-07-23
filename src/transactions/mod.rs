@@ -11,7 +11,7 @@ use crate::{
     config::{self},
     constants::{FIFTH_WEB_MULTICALL, UNISWAP_V2_FEE, WETH},
     error::ExecutorError,
-    routing::{find_best_a_to_b_route, find_a_to_b_markets_and_route, find_a_to_x_to_b_markets_and_route, find_best_a_to_x_to_b_route},
+    routing::{find_best_a_to_b_route, find_a_to_b_markets_and_route, find_a_to_x_to_b_markets_and_route, find_best_a_to_x_to_b_route, find_all_markets},
 };
 
 pub(crate) mod types;
@@ -38,6 +38,8 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         amount_fixed_for_fee -= amount_fixed_for_fee / 100;
         protocol_fee = amount_in - amount_fixed_for_fee;
     }
+
+    let all_margets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
 
     let multi_markets = 
         find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
