@@ -37,6 +37,7 @@ pub async fn find_a_to_b_markets_and_route<M: 'static + Middleware>(
     configuration: &Config,
     middleware: Arc<M>,
 ) -> Result<HashMap<H160, Pool>, ExecutorError<M>> {
+    println!("this is the position of before getting market in A-B");
     let markets = markets::get_market(
         match token_in.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -50,10 +51,12 @@ pub async fn find_a_to_b_markets_and_route<M: 'static + Middleware>(
         middleware,
     )
     .await?;
+    
+    println!("this is the position of after getting market in A-B =================> {:?}\n", markets);
 
     match markets {
         Some(markets) => {
-            println!("Found markets: {:?}", markets.keys());
+            println!("Found markets in A-B: {:?}", markets.keys());
             Ok(markets)
         }
         None => {
@@ -127,6 +130,8 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     configuration: &Config,
     middleware: Arc<M>,
 ) -> Result<HashMap<U256, markets::Market>, ExecutorError<M>> {
+    println!("this is the position of before getting market in A-X");
+
     let markets = markets::get_market_x(
         match token_in.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -140,6 +145,11 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
         middleware.clone(),
     )
     .await?;
+    
+    println!("this is the position of after getting market in A-X =================> {:?}\n", markets);
+
+    println!("this is the position of before getting market in X-B");
+
     let temp_markets = markets::get_market_x(
         match token_x.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -154,11 +164,13 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     )
     .await?;
 
+    println!("this is the position of after getting market in X-B =============> {:?}\n", temp_markets);
+
     let result = merge_option_hashmaps(markets, temp_markets);
     
     match result {
         Some(result) => {
-            println!("Found markets: {:?}", result.keys());
+            println!("Found markets in A-X-B: {:?}", result.keys());
             Ok(result)
         }
         None => {

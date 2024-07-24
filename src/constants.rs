@@ -3,6 +3,7 @@ pub const NULL_ADDRESS: &str = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 pub const ETH: &str = "0x0000000000000000000000000000000000000000";
 pub const WETH: &str = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
 pub const USDC: &str = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+pub const USDT: &str = "0xdac17f958d2ee523a2206206994597c13d831ec7";
 
 pub const PANCAKESWAP_V2: &str = "0x1097053Fd2ea711dad45caCcc45EfF7548fCB362";
 pub const PANCAKESWAP_CREATION_BLOCK: u64 = 15614590;

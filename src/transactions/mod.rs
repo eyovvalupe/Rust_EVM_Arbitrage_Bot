@@ -1,15 +1,16 @@
-use std::{str::FromStr, sync::Arc};
+use std::{str::FromStr, sync::Arc, collections::HashMap};
 
 use cfmms::pool::Pool;
 use ethabi::Token;
 use ethers::{
     abi::AbiEncode, providers::Middleware, types::{H160, I256, U256}
 };
-
+// use eyre::Ok;
+use futures::future::{BoxFuture, FutureExt};
 use crate::{
     abi::IERC20_ABI,
     config::{self},
-    constants::{FIFTH_WEB_MULTICALL, UNISWAP_V2_FEE, WETH},
+    constants::{FIFTH_WEB_MULTICALL, UNISWAP_V2_FEE, WETH, USDC, USDT},
     error::ExecutorError,
     routing::{find_best_a_to_b_route, find_a_to_b_markets_and_route, find_a_to_x_to_b_markets_and_route, find_best_a_to_x_to_b_route, find_all_markets},
 };
@@ -17,6 +18,77 @@ use crate::{
 pub(crate) mod types;
 
 use types::{SwapData, SwapMultiCall};
+
+fn compare_arc_option(
+    arc_opt: Arc<Option<H160>>,
+    opt: Option<H160>
+) -> bool {
+    let arc_value = &*arc_opt;
+    arc_value == &opt
+}
+
+pub fn find_route(
+    token_in: Arc<Option<H160>>,
+    token_out: Arc<Option<H160>>,
+    middle_tokens: Arc<HashMap<String, H160>>,
+    middle_tokens_names: Arc<Vec<&'static str>>,
+    step: usize,
+    wide: usize
+) -> BoxFuture<'static, ()> {
+    async move {
+        // Base case to stop recursion
+
+
+        // Simulate some async work
+        // sleep(Duration::from_millis(100)).await;
+
+        // Log the current step's middle token
+        println!(
+            "this is the test ===============> {:?}, {:?}, {:?}, {:?}\n",
+            step,
+            wide,
+            token_in,
+            token_out
+        );
+        if wide >= 3 {
+            println!("Reached the end of the middle tokens");
+            return;
+        } else if step == 3 {
+            // step = 0;
+        }
+        // Example comparison, adjust as needed for your use case
+        let token_b = middle_tokens.get("TOKEN_B").cloned();
+        let token_out_cloned = token_out.clone();
+
+        if compare_arc_option(token_out_cloned, token_b) {
+            println!("========================= End of the route ========================={:?}, {:?}", step, wide);
+            let next_token = middle_tokens.get(middle_tokens_names[wide + 1]).cloned();
+            find_route(
+                token_in.clone(),
+                Arc::new(next_token),
+                middle_tokens.clone(),
+                middle_tokens_names.clone(),
+                0,
+                wide + 1
+            ).await;
+        } else {
+            let mut next_token : Option<H160> = None;
+            if step == 0 {
+                next_token = middle_tokens.get(middle_tokens_names[step]).cloned();
+            } else {
+                next_token = middle_tokens.get(middle_tokens_names[step + 1]).cloned();
+            }
+            find_route(
+                token_out.clone(),
+                Arc::new(next_token),
+                middle_tokens.clone(),
+                middle_tokens_names.clone(),
+                step + 1,
+                wide
+            ).await;
+        }
+    }.boxed()
+}
 
 //Construct a final swap transaction calldata
 pub async fn swap_transaction_calldata<M: 'static + Middleware>(
@@ -34,12 +106,24 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let bribe = U256::zero();
     let to = H160::from_str(FIFTH_WEB_MULTICALL).unwrap();
 
+    let mut middle_tokens_names = vec!["TOKEN_B", "WETH", "USDC", "USDT"];
+    let mut middle_tokens = HashMap::new();
+    middle_tokens.insert(String::from("TOKEN_B"), token_out);
+    middle_tokens.insert(String::from("WETH"), H160::from_str(WETH).unwrap());
+    middle_tokens.insert(String::from("USDC"), H160::from_str(USDC).unwrap());
+    middle_tokens.insert(String::from("USDT"), H160::from_str(USDT).unwrap());
+    let middle_tokens = Arc::new(middle_tokens);
+    let middle_tokens_names = Arc::new(middle_tokens_names);
+    let token_route_in = Arc::new(Some(token_in));
+    let token_route_out = Arc::new(Some(token_out));
+    find_route( token_route_in, token_route_out, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0, 0).await;
+
     if token_in.is_zero() {
         amount_fixed_for_fee -= amount_fixed_for_fee / 100;
         protocol_fee = amount_in - amount_fixed_for_fee;
     }
 
-    let all_margets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
+    // let all_margets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
 
     let multi_markets = 
         find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
