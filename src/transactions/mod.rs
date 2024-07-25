@@ -29,63 +29,47 @@ fn compare_arc_option(
 
 pub fn find_route(
     token_in: Arc<Option<H160>>,
-    token_out: Arc<Option<H160>>,
     middle_tokens: Arc<HashMap<String, H160>>,
     middle_tokens_names: Arc<Vec<&'static str>>,
-    step: usize,
-    wide: usize
+    deep: usize
 ) -> BoxFuture<'static, ()> {
     async move {
-        // Base case to stop recursion
-
-
-        // Simulate some async work
-        // sleep(Duration::from_millis(100)).await;
-
-        // Log the current step's middle token
-        println!(
-            "this is the test ===============> {:?}, {:?}, {:?}, {:?}\n",
-            step,
-            wide,
-            token_in,
-            token_out
-        );
-        if wide >= 3 {
-            println!("Reached the end of the middle tokens");
-            return;
-        } else if step == 3 {
-            // step = 0;
-        }
-        // Example comparison, adjust as needed for your use case
         let token_b = middle_tokens.get("TOKEN_B").cloned();
-        let token_out_cloned = token_out.clone();
+        let usdc = middle_tokens.get("USDC").cloned();
+        let usdt = middle_tokens.get("USDT").cloned();
+        let token_in_cloned = token_in.clone();
 
-        if compare_arc_option(token_out_cloned, token_b) {
-            println!("========================= End of the route ========================={:?}, {:?}", step, wide);
-            let next_token = middle_tokens.get(middle_tokens_names[wide + 1]).cloned();
-            find_route(
-                token_in.clone(),
-                Arc::new(next_token),
-                middle_tokens.clone(),
-                middle_tokens_names.clone(),
-                0,
-                wide + 1
-            ).await;
-        } else {
-            let mut next_token : Option<H160> = None;
-            if step == 0 {
-                next_token = middle_tokens.get(middle_tokens_names[step]).cloned();
-            } else {
-                next_token = middle_tokens.get(middle_tokens_names[step + 1]).cloned();
+        let is_leaf = compare_arc_option(token_in_cloned, token_b);
+
+        println!(
+            "this is the test ===============> {:?}, {:?}\n",
+            deep,
+            token_in,
+        );
+        if is_leaf {
+            return ;
+        }
+        for temp in &*middle_tokens_names.clone() {
+            if deep == 3 {
+                break;
             }
+            let next_token = middle_tokens.get(*temp).cloned();
+            let is_in_usdc = compare_arc_option(token_in.clone(), usdc);
+            let is_out_usdc = next_token == usdc;
+            let is_in_usdt = compare_arc_option(token_in.clone(), usdt);
+            let is_out_usdt = next_token == usdt;
+            if (is_in_usdc && is_out_usdt) || (is_in_usdt && is_out_usdc) || (*token_in == next_token) {
+                continue;
+            } 
             find_route(
-                token_out.clone(),
                 Arc::new(next_token),
                 middle_tokens.clone(),
                 middle_tokens_names.clone(),
-                step + 1,
-                wide
+                deep+1
             ).await;
+            if deep == 2 && next_token == token_b {
+                break;
+            }
         }
     }.boxed()
 }
@@ -106,7 +90,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let bribe = U256::zero();
     let to = H160::from_str(FIFTH_WEB_MULTICALL).unwrap();
 
-    let mut middle_tokens_names = vec!["TOKEN_B", "WETH", "USDC", "USDT"];
+    let middle_tokens_names = vec!["TOKEN_B", "WETH", "USDC", "USDT"];
     let mut middle_tokens = HashMap::new();
     middle_tokens.insert(String::from("TOKEN_B"), token_out);
     middle_tokens.insert(String::from("WETH"), H160::from_str(WETH).unwrap());
@@ -115,8 +99,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let middle_tokens = Arc::new(middle_tokens);
     let middle_tokens_names = Arc::new(middle_tokens_names);
     let token_route_in = Arc::new(Some(token_in));
-    let token_route_out = Arc::new(Some(token_out));
-    find_route( token_route_in, token_route_out, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0, 0).await;
+    find_route( token_route_in, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0).await;
 
     if token_in.is_zero() {
         amount_fixed_for_fee -= amount_fixed_for_fee / 100;
