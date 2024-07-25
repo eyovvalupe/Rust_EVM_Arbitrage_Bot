@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc, collections::HashMap};
+use std::{str::FromStr, sync::{Arc, Mutex}, collections::HashMap};
 
 use cfmms::pool::Pool;
 use ethabi::Token;
@@ -6,7 +6,8 @@ use ethers::{
     abi::AbiEncode, providers::Middleware, types::{H160, I256, U256}
 };
 // use eyre::Ok;
-use futures::future::{BoxFuture, FutureExt};
+use futures::{future::{BoxFuture, FutureExt}, executor::block_on};
+use lazy_static::lazy_static;
 use crate::{
     abi::IERC20_ABI,
     config::{self},
@@ -18,6 +19,22 @@ use crate::{
 pub(crate) mod types;
 
 use types::{SwapData, SwapMultiCall};
+
+lazy_static! {
+    static ref GLOBAL_VEC: Arc<Mutex<Vec<Vec<H160>>>> = Arc::new(Mutex::new(Vec::new()));
+}
+
+// Function to add a vector to the global vector
+fn add_to_global_vec(vec: Vec<H160>) {
+    let mut global_vec = GLOBAL_VEC.lock().unwrap();
+    global_vec.push(vec);
+}
+
+// Async function example
+async fn async_add_to_global_vec(vec: Vec<H160>) {
+    let mut global_vec = GLOBAL_VEC.lock().unwrap();
+    global_vec.push(vec);
+}
 
 fn compare_arc_option(
     arc_opt: Arc<Option<H160>>,
@@ -31,7 +48,8 @@ pub fn find_route(
     token_in: Arc<Option<H160>>,
     middle_tokens: Arc<HashMap<String, H160>>,
     middle_tokens_names: Arc<Vec<&'static str>>,
-    deep: usize
+    deep: usize,
+    temp_res: Arc<Mutex<Vec<H160>>>
 ) -> BoxFuture<'static, ()> {
     async move {
         let token_b = middle_tokens.get("TOKEN_B").cloned();
@@ -40,13 +58,18 @@ pub fn find_route(
         let token_in_cloned = token_in.clone();
 
         let is_leaf = compare_arc_option(token_in_cloned, token_b);
-
+        if let Some(token) = *token_in {
+            temp_res.lock().unwrap().push(token);
+        }
         println!(
             "this is the test ===============> {:?}, {:?}\n",
             deep,
-            token_in,
+            token_in
         );
         if is_leaf {
+            println!("====================================this is the temp result =========================== \n{:?}\n", temp_res.lock().unwrap());
+            let future = async_add_to_global_vec(temp_res.lock().unwrap().to_vec());
+            block_on(future);
             return ;
         }
         for temp in &*middle_tokens_names.clone() {
@@ -60,13 +83,16 @@ pub fn find_route(
             let is_out_usdt = next_token == usdt;
             if (is_in_usdc && is_out_usdt) || (is_in_usdt && is_out_usdc) || (*token_in == next_token) {
                 continue;
-            } 
+            }
             find_route(
                 Arc::new(next_token),
                 middle_tokens.clone(),
                 middle_tokens_names.clone(),
-                deep+1
+                deep+1,
+                temp_res.clone()
             ).await;
+            temp_res.lock().unwrap().pop();
+
             if deep == 2 && next_token == token_b {
                 break;
             }
@@ -99,8 +125,10 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let middle_tokens = Arc::new(middle_tokens);
     let middle_tokens_names = Arc::new(middle_tokens_names);
     let token_route_in = Arc::new(Some(token_in));
-    find_route( token_route_in, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0).await;
-
+    let temp_res = Arc::new(Mutex::new(vec![]));
+    find_route( token_route_in, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0, temp_res).await;
+    let routes = GLOBAL_VEC.lock().unwrap();
+    println!("==============================================this is the all routes from tree=====================================\n{:?}", routes);
     if token_in.is_zero() {
         amount_fixed_for_fee -= amount_fixed_for_fee / 100;
         protocol_fee = amount_in - amount_fixed_for_fee;
