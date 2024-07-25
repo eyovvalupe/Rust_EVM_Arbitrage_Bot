@@ -175,14 +175,14 @@ impl Config {
                         SUSHISWAP_CREATION_BLOCK,
                         Some(300),
                     ),
-                    // // Uniswap V2
-                    // Dex::new(
-                    //     H160::from_str(UNISWAP_V2).unwrap(),
-                    //     DexVariant::UniswapV2,
-                    //     UNISWAP_V2_CREATION_BLOCK,
-                    //     None,
-                    // ),
-                    // // Uniswap V3
+                    // Uniswap V2
+                    Dex::new(
+                        H160::from_str(UNISWAP_V2).unwrap(),
+                        DexVariant::UniswapV2,
+                        UNISWAP_V2_CREATION_BLOCK,
+                        None,
+                    ),
+                    // Uniswap V3
                     // Dex::new(
                     //     H160::from_str(UNISWAP_V3).unwrap(),
                     //     DexVariant::UniswapV3,

@@ -24,12 +24,6 @@ lazy_static! {
     static ref GLOBAL_VEC: Arc<Mutex<Vec<Vec<H160>>>> = Arc::new(Mutex::new(Vec::new()));
 }
 
-// Function to add a vector to the global vector
-fn add_to_global_vec(vec: Vec<H160>) {
-    let mut global_vec = GLOBAL_VEC.lock().unwrap();
-    global_vec.push(vec);
-}
-
 // Async function example
 async fn async_add_to_global_vec(vec: Vec<H160>) {
     let mut global_vec = GLOBAL_VEC.lock().unwrap();
@@ -61,13 +55,7 @@ pub fn find_route(
         if let Some(token) = *token_in {
             temp_res.lock().unwrap().push(token);
         }
-        println!(
-            "this is the test ===============> {:?}, {:?}\n",
-            deep,
-            token_in
-        );
         if is_leaf {
-            println!("====================================this is the temp result =========================== \n{:?}\n", temp_res.lock().unwrap());
             let future = async_add_to_global_vec(temp_res.lock().unwrap().to_vec());
             block_on(future);
             return ;
@@ -118,23 +106,65 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
 
     let middle_tokens_names = vec!["TOKEN_B", "WETH", "USDC", "USDT"];
     let mut middle_tokens = HashMap::new();
+
     middle_tokens.insert(String::from("TOKEN_B"), token_out);
     middle_tokens.insert(String::from("WETH"), H160::from_str(WETH).unwrap());
     middle_tokens.insert(String::from("USDC"), H160::from_str(USDC).unwrap());
     middle_tokens.insert(String::from("USDT"), H160::from_str(USDT).unwrap());
+
     let middle_tokens = Arc::new(middle_tokens);
     let middle_tokens_names = Arc::new(middle_tokens_names);
     let token_route_in = Arc::new(Some(token_in));
     let temp_res = Arc::new(Mutex::new(vec![]));
+
     find_route( token_route_in, Arc::clone(&middle_tokens), Arc::clone(&middle_tokens_names), 0, temp_res).await;
     let routes = GLOBAL_VEC.lock().unwrap();
     println!("==============================================this is the all routes from tree=====================================\n{:?}", routes);
+    
     if token_in.is_zero() {
         amount_fixed_for_fee -= amount_fixed_for_fee / 100;
         protocol_fee = amount_in - amount_fixed_for_fee;
     }
+    
+    let mut tree_pool: Vec<Vec<Pool>> = Vec::new();
+    let mut tree_amount: Vec<Vec<U256>> = Vec::new();
+    tree_pool.resize(routes.len(), Vec::new());
+    tree_amount.resize(routes.len(), Vec::new());
+    let mut tree_best_route: Vec<Pool> = Vec::new();
+    let mut tree_best_amount_out = U256::zero();
 
-    // let all_margets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
+    for i in 0..routes.len() {
+        for j in 0..routes[i].len() {
+
+            if j + 1 == routes[i].len() {
+                break;
+            }
+
+            let mut temp_amount_in: U256 = U256::zero();
+
+            if j == 0 {
+                temp_amount_in = amount_fixed_for_fee;
+            } else {
+                temp_amount_in = tree_amount[i][j-1];
+            }
+
+            let markets =
+                find_a_to_b_markets_and_route(routes[i][j], routes[i][j+1], configuration, middleware.clone()).await?;
+            let (pool, amount_out) =
+                find_best_a_to_b_route(markets, token_in, temp_amount_in, middleware.clone()).await?;
+
+            tree_pool[i].push(pool);
+            tree_amount[i].push(amount_out);
+        }
+        if tree_best_amount_out < *tree_amount[i].last().unwrap() {
+            tree_best_amount_out = *tree_amount[i].last().unwrap();
+            tree_best_route = tree_pool[i].clone();
+        }
+    }
+
+    println!("==============================================this is the best route and amount from tree=====================================\n{:?}\n{:?}\n", tree_best_amount_out, tree_best_route);
+
+    // let all_markets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
 
     let multi_markets = 
         find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
@@ -200,6 +230,8 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         token_in_destination: to,
         calls: vec![],
     };
+
+    println!("========================= this is the best amount and route from A-B and A-X-B ======================= \n{:?}, {:?}\n", best_amount_out, best_route);
 
     for best_pool in best_route {
         match best_pool {

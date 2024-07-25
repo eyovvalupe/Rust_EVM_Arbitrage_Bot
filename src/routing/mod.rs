@@ -37,7 +37,6 @@ pub async fn find_a_to_b_markets_and_route<M: 'static + Middleware>(
     configuration: &Config,
     middleware: Arc<M>,
 ) -> Result<HashMap<H160, Pool>, ExecutorError<M>> {
-    println!("this is the position of before getting market in A-B");
     let markets = markets::get_market(
         match token_in.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -52,8 +51,6 @@ pub async fn find_a_to_b_markets_and_route<M: 'static + Middleware>(
     )
     .await?;
     
-    println!("this is the position of after getting market in A-B =================> {:?}\n", markets);
-
     match markets {
         Some(markets) => {
             println!("Found markets in A-B: {:?}", markets.keys());
@@ -76,7 +73,6 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
 ) -> Result<(Pool, U256), ExecutorError<M>> {
     let mut best_amount_out = U256::zero();
     let mut best_pool = Pool::UniswapV2(UniswapV2Pool::default());
-
     for pool in markets.values() {
         let pool = *pool;
         match pool {
@@ -130,8 +126,6 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     configuration: &Config,
     middleware: Arc<M>,
 ) -> Result<HashMap<U256, markets::Market>, ExecutorError<M>> {
-    println!("this is the position of before getting market in A-X");
-
     let markets = markets::get_market_x(
         match token_in.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -146,10 +140,6 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
     )
     .await?;
     
-    println!("this is the position of after getting market in A-X =================> {:?}\n", markets);
-
-    println!("this is the position of before getting market in X-B");
-
     let temp_markets = markets::get_market_x(
         match token_x.is_zero() {
             true => H160::from_str(WETH).unwrap(),
@@ -163,8 +153,6 @@ pub async fn find_a_to_x_to_b_markets_and_route<M: 'static + Middleware>(
         middleware.clone(),
     )
     .await?;
-
-    println!("this is the position of after getting market in X-B =============> {:?}\n", temp_markets);
 
     let result = merge_option_hashmaps(markets, temp_markets);
     
