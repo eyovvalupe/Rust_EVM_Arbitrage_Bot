@@ -156,7 +156,10 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
             tree_pool[i].push(pool);
             tree_amount[i].push(amount_out);
         }
-        if tree_best_amount_out < *tree_amount[i].last().unwrap() {
+        if(tree_best_amount_out != U256::zero() && *tree_amount[i].last().unwrap() > tree_best_amount_out * 2) {
+            continue;
+        }
+        if tree_best_amount_out < *tree_amount[i].last().unwrap()  {
             tree_best_amount_out = *tree_amount[i].last().unwrap();
             tree_best_route = tree_pool[i].clone();
         }

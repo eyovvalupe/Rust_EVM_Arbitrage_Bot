@@ -74,7 +74,7 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
     let mut best_amount_out = U256::zero();
     let mut best_pool = Pool::UniswapV2(UniswapV2Pool::default());
     for pool in markets.values() {
-        let pool = *pool;
+        let pool: Pool = *pool;
         match pool {
             Pool::UniswapV2(_) => {
                 let swap_amount_out = pool
