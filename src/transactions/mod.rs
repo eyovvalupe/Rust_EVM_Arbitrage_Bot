@@ -55,7 +55,7 @@ pub fn find_route(
         if let Some(token) = *token_in {
             temp_res.lock().unwrap().push(token);
         }
-        if is_leaf {
+        if is_leaf && temp_res.lock().unwrap().to_vec().len() != 1 {
             let future = async_add_to_global_vec(temp_res.lock().unwrap().to_vec());
             block_on(future);
             return ;
