@@ -151,7 +151,9 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
             let markets =
                 find_a_to_b_markets_and_route(routes[i][j], routes[i][j+1], configuration, middleware.clone()).await?;
             let (pool, amount_out) =
-                find_best_a_to_b_route(markets, token_in, temp_amount_in, middleware.clone()).await?;
+                find_best_a_to_b_route(markets, routes[i][j], temp_amount_in, middleware.clone()).await?;
+            println!("this is the token pair ===============> {:?}, {:?}\n", routes[i][j], routes[i][j+1]);
+            println!("this is the markets from finding markets ===============> {:?}\n", pool);
 
             tree_pool[i].push(pool);
             tree_amount[i].push(amount_out);
@@ -163,6 +165,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
             tree_best_amount_out = *tree_amount[i].last().unwrap();
             tree_best_route = tree_pool[i].clone();
         }
+        println!("============== this is the each route and pool of tree ============== \n{:?}\n{:?}\n{:?}\n", tree_amount[i], routes[i], tree_pool[i]);
     }
 
     println!("==============================================this is the best route and amount from tree=====================================\n{:?}\n{:?}\n", tree_best_amount_out, tree_best_route);

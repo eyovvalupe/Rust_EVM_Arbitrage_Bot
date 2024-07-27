@@ -73,10 +73,16 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
 ) -> Result<(Pool, U256), ExecutorError<M>> {
     let mut best_amount_out = U256::zero();
     let mut best_pool = Pool::UniswapV2(UniswapV2Pool::default());
+    
     for pool in markets.values() {
         let pool: Pool = *pool;
         match pool {
-            Pool::UniswapV2(_) => {
+            Pool::UniswapV2(uniswap_v2_pool) => {
+                let (token_in, token_out) = if token_in == uniswap_v2_pool.token_a {
+                    (uniswap_v2_pool.token_a, uniswap_v2_pool.token_b)
+                } else {
+                    (uniswap_v2_pool.token_b, uniswap_v2_pool.token_a)
+                };
                 let swap_amount_out = pool
                     .simulate_swap(token_in, amount, middleware.clone())
                     .await?;
@@ -88,30 +94,22 @@ pub async fn find_best_a_to_b_route<M: 'static + Middleware>(
             }
 
             Pool::UniswapV3(uniswap_v3_pool) => {
-                let uniswap_v3_quoter =
-                    IUniswapV3Quoter::new(V3_QUOTER_ADDRESS, middleware.clone());
-
+                println!("this is the before the simulate swap. ===================> {:?}\n", uniswap_v3_pool);
                 let (token_in, token_out) = if token_in == uniswap_v3_pool.token_a {
                     (uniswap_v3_pool.token_a, uniswap_v3_pool.token_b)
                 } else {
                     (uniswap_v3_pool.token_b, uniswap_v3_pool.token_a)
                 };
-
-                let swap_amount_out = uniswap_v3_quoter
-                    .quote_exact_input_single(
-                        token_in,
-                        token_out,
-                        pool.fee(),
-                        amount,
-                        U256::zero(),
-                    )
-                    .call()
+                let swap_amount_out = pool
+                    .simulate_swap(token_in, amount, middleware.clone())
                     .await?;
-
+                
                 if swap_amount_out > best_amount_out {
                     best_amount_out = swap_amount_out;
                     best_pool = pool;
                 }
+
+                println!("this is the after the simulate swap. ================> {:?}, {:?}, {:?}, {:?}, {:?}\n", swap_amount_out, uniswap_v3_pool.token_a, uniswap_v3_pool.token_b, uniswap_v3_pool, amount);
             }
         };
     }
