@@ -158,7 +158,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
             tree_pool[i].push(pool);
             tree_amount[i].push(amount_out);
         }
-        if(tree_best_amount_out != U256::zero() && *tree_amount[i].last().unwrap() > tree_best_amount_out * 2) {
+        if tree_best_amount_out != U256::zero() && *tree_amount[i].last().unwrap() > tree_best_amount_out * 2 {
             continue;
         }
         if tree_best_amount_out < *tree_amount[i].last().unwrap()  {
@@ -172,17 +172,17 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
 
     // let all_markets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
 
-    let multi_markets = 
-        find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
+    // let multi_markets = 
+    //     find_a_to_x_to_b_markets_and_route(token_in, token_out, token_x, configuration, middleware.clone()).await?;
     
-    let (amounts_in, axb_amounts_out, axb_route) = 
-        find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone()).await?;
+    // let (amounts_in, axb_amounts_out, axb_route) = 
+    //     find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone()).await?;
     
-    let markets =
-        find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
+    // let markets =
+    //     find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
 
-    let (ab_pool, ab_amount_out) =
-        find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
+    // let (ab_pool, ab_amount_out) =
+    //     find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
 
     // Construct SwapCallData
     let mut swap_data: SwapData = SwapData {
@@ -200,19 +200,22 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         0 => 95 * 100,
         _ => slippage,
     };
-    let mut ab_route = vec![];
+    // let mut ab_route = vec![];
     let mut best_route = vec![];
     let mut best_amount_out = U256::zero();
 
-    ab_route.push(ab_pool);
-    if axb_amounts_out.last().unwrap() > &ab_amount_out {
-        best_amount_out = *axb_amounts_out.last().unwrap();
-        best_route = axb_route;
-    }
-    else {
-        best_amount_out = ab_amount_out;
-        best_route = ab_route;
-    }
+    best_amount_out = tree_best_amount_out;
+    best_route = tree_best_route;
+
+    // ab_route.push(ab_pool);
+    // if axb_amounts_out.last().unwrap() > &ab_amount_out {
+    //     best_amount_out = *axb_amounts_out.last().unwrap();
+    //     best_route = axb_route;
+    // }
+    // else {
+    //     best_amount_out = ab_amount_out;
+    //     best_route = ab_route;
+    // }
 
     let amount_out_min = best_amount_out - best_amount_out * slippage_used / 10000;
 
