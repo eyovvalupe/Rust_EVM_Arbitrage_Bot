@@ -240,7 +240,7 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         calls: vec![],
     };
 
-    println!("========================= this is the best amount and route from A-B and A-X-B ======================= \n{:?}, {:?}\n", best_amount_out, best_route);
+    // println!("========================= this is the best amount and route from A-B and A-X-B ======================= \n{:?}, {:?}\n", best_amount_out, best_route);
 
     for best_pool in best_route {
         match best_pool {

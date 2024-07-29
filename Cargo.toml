@@ -23,6 +23,7 @@ serde = "1.0.195"
 thiserror = "1.0.56"
 throttle = "0.1.0"
 tokio = { version = "1.35.1", features = ["full"] }
+toml = "0.5.9"
 tracing-subscriber = "0.3.18"
 uniswap_v3_math = "0.4.1"
 
