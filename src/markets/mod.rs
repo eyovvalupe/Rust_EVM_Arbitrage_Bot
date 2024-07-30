@@ -66,6 +66,7 @@ pub async fn get_market<M: 'static + Middleware>(
     middleware: Arc<M>,
 ) -> Result<Option<HashMap<H160, Pool>>, ExecutorError<M>> {
     let mut market = HashMap::new();
+    println!("this is the first step of find route");
 
     for dex in dexes {
         if let Some(pools) = dex
@@ -77,6 +78,7 @@ pub async fn get_market<M: 'static + Middleware>(
             }
         }
     }
+            println!("this is the first step of find route");
 
     if !market.is_empty() {
         Ok(Some(market))

@@ -133,42 +133,42 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     let mut tree_best_route: Vec<Pool> = Vec::new();
     let mut tree_best_amount_out = U256::zero();
 
-    for i in 0..routes.len() {
-        for j in 0..routes[i].len() {
+    // for i in 0..routes.len() {
+    //     for j in 0..routes[i].len() {
 
-            if j + 1 == routes[i].len() {
-                break;
-            }
+    //         if j + 1 == routes[i].len() {
+    //             break;
+    //         }
 
-            let mut temp_amount_in: U256 = U256::zero();
+    //         let mut temp_amount_in: U256 = U256::zero();
 
-            if j == 0 {
-                temp_amount_in = amount_fixed_for_fee;
-            } else {
-                temp_amount_in = tree_amount[i][j-1];
-            }
+    //         if j == 0 {
+    //             temp_amount_in = amount_fixed_for_fee;
+    //         } else {
+    //             temp_amount_in = tree_amount[i][j-1];
+    //         }
 
-            let markets =
-                find_a_to_b_markets_and_route(routes[i][j], routes[i][j+1], configuration, middleware.clone()).await?;
-            let (pool, amount_out) =
-                find_best_a_to_b_route(markets, routes[i][j], temp_amount_in, middleware.clone()).await?;
-            println!("this is the token pair ===============> {:?}, {:?}\n", routes[i][j], routes[i][j+1]);
-            println!("this is the markets from finding markets ===============> {:?}\n", pool);
+    //         let markets =
+    //             find_a_to_b_markets_and_route(routes[i][j], routes[i][j+1], configuration, middleware.clone()).await?;
+    //         let (pool, amount_out) =
+    //             find_best_a_to_b_route(markets, routes[i][j], temp_amount_in, middleware.clone()).await?;
+    //         // println!("this is the token pair ===============> {:?}, {:?}\n", routes[i][j], routes[i][j+1]);
+    //         // println!("this is the markets from finding markets ===============> {:?}\n", pool);
 
-            tree_pool[i].push(pool);
-            tree_amount[i].push(amount_out);
-        }
-        if tree_best_amount_out != U256::zero() && *tree_amount[i].last().unwrap() > tree_best_amount_out * 2 {
-            continue;
-        }
-        if tree_best_amount_out < *tree_amount[i].last().unwrap()  {
-            tree_best_amount_out = *tree_amount[i].last().unwrap();
-            tree_best_route = tree_pool[i].clone();
-        }
-        println!("============== this is the each route and pool of tree ============== \n{:?}\n{:?}\n{:?}\n", tree_amount[i], routes[i], tree_pool[i]);
-    }
+    //         tree_pool[i].push(pool);
+    //         tree_amount[i].push(amount_out);
+    //     }
+    //     if tree_best_amount_out != U256::zero() && *tree_amount[i].last().unwrap() > tree_best_amount_out * 2 {
+    //         continue;
+    //     }
+    //     if tree_best_amount_out < *tree_amount[i].last().unwrap()  {
+    //         tree_best_amount_out = *tree_amount[i].last().unwrap();
+    //         tree_best_route = tree_pool[i].clone();
+    //     }
+    //     // println!("============== this is the each route and pool of tree ============== \n{:?}\n{:?}\n{:?}\n", tree_amount[i], routes[i], tree_pool[i]);
+    // }
 
-    println!("==============================================this is the best route and amount from tree=====================================\n{:?}\n{:?}\n", tree_best_amount_out, tree_best_route);
+    // println!("==============================================this is the best route and amount from tree=====================================\n{:?}\n{:?}\n", tree_best_amount_out, tree_best_route);
 
     // let all_markets = find_all_markets(token_in, token_out, configuration, middleware.clone()).await?;
 
@@ -178,12 +178,12 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     // let (amounts_in, axb_amounts_out, axb_route) = 
     //     find_best_a_to_x_to_b_route(token_in, token_out, token_x, amount_in, &multi_markets, middleware.clone()).await?;
     
-    // let markets =
-    //     find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
+    let markets =
+        find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
+        println!("this is the best pool from A - B ======================> {:?}\n", markets);
 
-    // let (ab_pool, ab_amount_out) =
-    //     find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
-
+    let (ab_pool, ab_amount_out) =
+        find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
     // Construct SwapCallData
     let mut swap_data: SwapData = SwapData {
         token_in: None,
@@ -200,21 +200,21 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
         0 => 95 * 100,
         _ => slippage,
     };
-    // let mut ab_route = vec![];
+    let mut ab_route = vec![];
     let mut best_route = vec![];
     let mut best_amount_out = U256::zero();
 
     best_amount_out = tree_best_amount_out;
     best_route = tree_best_route;
 
-    // ab_route.push(ab_pool);
+    ab_route.push(ab_pool);
     // if axb_amounts_out.last().unwrap() > &ab_amount_out {
     //     best_amount_out = *axb_amounts_out.last().unwrap();
     //     best_route = axb_route;
     // }
     // else {
-    //     best_amount_out = ab_amount_out;
-    //     best_route = ab_route;
+        best_amount_out = ab_amount_out;
+        best_route = ab_route;
     // }
 
     let amount_out_min = best_amount_out - best_amount_out * slippage_used / 10000;

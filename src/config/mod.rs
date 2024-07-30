@@ -152,7 +152,7 @@ impl Config {
         // config.order_cancellation = coex_toml.order_cancellation;
 
         // let chain = Chain::from_str(&coex_toml.chain_name);
-        let chain = Chain::from_str("ethereum");
+        let chain = Chain::from_str("bsc");
         config.chain = chain;
 
         match config.chain {
@@ -305,8 +305,8 @@ impl Config {
 
               // }
               Chain::Bsc => {
-                //   config.http_endpoint = coex_toml.http_endpoint;
-                //   config.ws_endpoint = coex_toml.ws_endpoint;
+                  config.http_endpoint = rpc_endpoint;
+                  config.ws_endpoint = ws_endpoint;
                   config.native_token = NativeToken::ETH;
                   config.weth_address =
                       H160::from_str("0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c").unwrap();
