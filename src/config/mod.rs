@@ -152,7 +152,7 @@ impl Config {
         // config.order_cancellation = coex_toml.order_cancellation;
 
         // let chain = Chain::from_str(&coex_toml.chain_name);
-        let chain = Chain::from_str("bsc");
+        let chain = Chain::from_str("ethereum");
         config.chain = chain;
 
         match config.chain {

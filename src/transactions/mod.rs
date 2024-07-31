@@ -180,10 +180,10 @@ pub async fn swap_transaction_calldata<M: 'static + Middleware>(
     
     let markets =
         find_a_to_b_markets_and_route(token_in, token_out, configuration, middleware.clone()).await?;
-        println!("this is the best pool from A - B ======================> {:?}\n", markets);
 
     let (ab_pool, ab_amount_out) =
         find_best_a_to_b_route(markets, token_in, amount_fixed_for_fee, middleware.clone()).await?;
+
     // Construct SwapCallData
     let mut swap_data: SwapData = SwapData {
         token_in: None,
